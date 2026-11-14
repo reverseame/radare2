@@ -1053,3 +1053,27 @@ var int64_t var_20h @ rsp+0x20
 var int64_t var_90h @ rsp+0x90
 EOF
 RUN
+
+NAME=P* saves the real name and the color of the flags
+FILE=malloc://512
+CMDS=<<EOF
+mkdir .tmp
+f pdb.Point::init_int__int_ 4 @ 0x10
+'fN pdb.Point::init_int__int_ public: void __thiscall Point::init(int, int)
+fc pdb.Point::init_int__int_=red > /dev/null
+P*~^'fN
+P*~^'fc
+P* > .tmp/prj-realname.r2
+f-*
+. .tmp/prj-realname.r2 > /dev/null
+rm .tmp/prj-realname.r2
+fd.j @ 0x10
+fc*
+EOF
+EXPECT=<<EOF
+'fN pdb.Point::init_int__int_ base64:cHVibGljOiB2b2lkIF9fdGhpc2NhbGwgUG9pbnQ6OmluaXQoaW50LCBpbnQp
+'fc pdb.Point::init_int__int_=red
+[{"name":"pdb.Point::init_int__int_","realname":"public: void __thiscall Point::init(int, int)"}]
+'fc pdb.Point::init_int__int_=red
+EOF
+RUN

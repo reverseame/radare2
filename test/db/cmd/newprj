@@ -506,6 +506,32 @@ EXPECT=<<EOF
 EOF
 RUN
 
+NAME=newprj xref perms in the script and the diff
+FILE=malloc://0x100
+CMDS=<<EOF
+mkdir .tmp
+rm .tmp/newprj-xrefperms.prj
+axw 0x30 0x10
+axd 0x40 0x20 rw-
+prj save .tmp/newprj-xrefperms.prj > /dev/null
+prj r2 .tmp/newprj-xrefperms.prj~^'ax
+ax-*
+prj load .tmp/newprj-xrefperms.prj > /dev/null
+axq
+axd 0x40 0x20
+prj diff .tmp/newprj-xrefperms.prj~^'ax
+rm .tmp/newprj-xrefperms.prj
+EOF
+EXPECT=<<EOF
+'axd 0x00000030 0x00000010 -w-
+'axd 0x00000040 0x00000020 rw-
+0x00000010 -> 0x00000030  DATA:-w-
+0x00000020 -> 0x00000040  DATA:rw-
+'ax- 0x00000040 0x00000020
+'axd 0x00000040 0x00000020
+EOF
+RUN
+
 NAME=newprj rebased xrefs keep source and target modules
 FILE=malloc://0x10
 CMDS=<<EOF

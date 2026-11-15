@@ -1101,3 +1101,42 @@ EXPECT=<<EOF
 |           0x00000009      mov dword [var_4h], 0x40                   ; '@'
 EOF
 RUN
+
+NAME=ax* and afl* round-trip the read and write perms of the data refs
+FILE=malloc://0x100
+ARGS=-a x86 -b 32
+CMDS=<<EOF
+mkdir .tmp
+wx a140000000a344000000010548000000c3
+af
+axw 0x44 0x5
+axd 0x48 0xa rw-
+ax*
+afl*~^'ax
+ax* > .tmp/ax-perms.r2
+ax-*
+. .tmp/ax-perms.r2
+rm .tmp/ax-perms.r2
+axq
+afl* > .tmp/afl-perms.r2
+af-*
+ax-*
+. .tmp/afl-perms.r2
+rm .tmp/afl-perms.r2
+axq
+EOF
+EXPECT=<<EOF
+axd 0x40 0x0
+axd 0x44 0x5 -w-
+axd 0x48 0xa rw-
+'axd 0x40 0x0
+'axd 0x44 0x5 -w-
+'axd 0x48 0xa rw-
+0x00000000 -> 0x00000040  DATA:r--
+0x00000005 -> 0x00000044  DATA:-w-
+0x0000000a -> 0x00000048  DATA:rw-
+0x00000000 -> 0x00000040  DATA:r--
+0x00000005 -> 0x00000044  DATA:-w-
+0x0000000a -> 0x00000048  DATA:rw-
+EOF
+RUN

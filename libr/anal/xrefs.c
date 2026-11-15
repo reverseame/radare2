@@ -430,8 +430,9 @@ static void r_anal_xrefs_list_hex(RStrBuf *sb, RVecAnalRef *anal_refs) {
 	RAnalRef *ref;
 	R_VEC_FOREACH (anal_refs, ref) {
 		const int t = R_ANAL_REF_TYPE_MASK (ref->type);
-		// TODO: export/import the read-write-exec information
-		r_strbuf_appendf (sb, "ax%c 0x%"PFMT64x" 0x%"PFMT64x"\n", t? t: ' ', ref->addr, ref->at);
+		const char *perm = r_anal_ref_perm_tocmd (ref);
+		r_strbuf_appendf (sb, "ax%c 0x%"PFMT64x" 0x%"PFMT64x"%s%s\n", t? t: ' ', ref->addr, ref->at,
+			perm? " ": "", r_str_get (perm));
 	}
 }
 
@@ -726,6 +727,14 @@ R_API const char *r_anal_ref_perm_tostring(RAnalRef *ref) {
 		}
 	}
 	return r_str_rwx_i (perm);
+}
+
+// The perm for the ax commands that set the ref, or NULL when its type already implies it
+R_API const char *r_anal_ref_perm_tocmd(RAnalRef *ref) {
+	R_RETURN_VAL_IF_FAIL (ref, NULL);
+	const RAnalRefType perm = R_ANAL_REF_TYPE_PERM (ref->type);
+	const RAnalRefType implied = R_ANAL_REF_TYPE_PERM (xref_resolve_type (R_ANAL_REF_TYPE_MASK (ref->type)));
+	return (perm && perm != implied)? r_str_rwx_i (perm): NULL;
 }
 
 R_API int r_anal_ref_size(RAnalRef *ref) {

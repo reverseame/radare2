@@ -529,12 +529,16 @@ static R2ProjectDiffBlock *rprj_diff_block_find(RList *bbs, ut64 addr) {
 	return NULL;
 }
 
+// the type and the perm, which the ax commands of the script can set
+static inline bool rprj_xref_type_eq(ut32 a, ut32 b) {
+	return R_ANAL_REF_TYPE_MASK (a) == R_ANAL_REF_TYPE_MASK (b) && R_ANAL_REF_TYPE_PERM (a) == R_ANAL_REF_TYPE_PERM (b);
+}
+
 static R2ProjectDiffXref *rprj_diff_xref_find(RList *xrefs, ut64 from, ut64 to, ut32 type) {
 	RListIter *iter;
 	R2ProjectDiffXref *xref;
 	r_list_foreach (xrefs, iter, xref) {
-		if (xref->from == from && xref->to == to
-				&& R_ANAL_REF_TYPE_MASK (xref->type) == R_ANAL_REF_TYPE_MASK (type)) {
+		if (xref->from == from && xref->to == to && rprj_xref_type_eq (xref->type, type)) {
 			return xref;
 		}
 	}
@@ -626,8 +630,9 @@ static bool rprj_flag_differs(RFlag *flags, RFlagItem *fi, ut64 addr, ut64 size,
 }
 
 static void rprj_print_xref_script(RPrjCursor *cur, RAnalRef *ref) {
-	r_strbuf_appendf (cur->out, "'ax%c 0x%08"PFMT64x" 0x%08"PFMT64x"\n",
-		(char)R_ANAL_REF_TYPE_MASK (ref->type), ref->addr, ref->at);
+	const char *perm = r_anal_ref_perm_tocmd (ref);
+	r_strbuf_appendf (cur->out, "'ax%c 0x%08"PFMT64x" 0x%08"PFMT64x"%s%s\n",
+		(char)R_ANAL_REF_TYPE_MASK (ref->type), ref->addr, ref->at, perm? " ": "", r_str_get (perm));
 }
 
 static void rprj_print_hint_script(RPrjCursor *cur, ut64 addr, RAnalAddrHintType ht, int value) {
@@ -1211,8 +1216,8 @@ static void rprj_xref_load(RPrjCursor *cur, int mode, ut64 next_entry) {
 			continue;
 		}
 		if (mode & R_CORE_NEWPRJ_MODE_SCRIPT) {
-			r_strbuf_appendf (cur->out, "'ax%c 0x%08"PFMT64x" 0x%08"PFMT64x"\n",
-				(char)R_ANAL_REF_TYPE_MASK (xref.type), to, from);
+			RAnalRef ref = { .at = from, .addr = to, .type = xref.type };
+			rprj_print_xref_script (cur, &ref);
 		}
 		if (diff) {
 			R2ProjectDiffXref *dx = R_NEW (R2ProjectDiffXref);
@@ -1225,8 +1230,7 @@ static void rprj_xref_load(RPrjCursor *cur, int mode, ut64 next_entry) {
 			if (refs) {
 				RAnalRef *ref;
 				R_VEC_FOREACH (refs, ref) {
-					if (ref->at == from && ref->addr == to
-							&& R_ANAL_REF_TYPE_MASK (ref->type) == R_ANAL_REF_TYPE_MASK (xref.type)) {
+					if (ref->at == from && ref->addr == to && rprj_xref_type_eq (ref->type, xref.type)) {
 						found = true;
 						break;
 					}

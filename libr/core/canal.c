@@ -3320,20 +3320,19 @@ static int fcn_print_detail(RCore *core, RAnalFunction *fcn) {
 	if (refs) {
 		RAnalRef *refi;
 		R_VEC_FOREACH (refs, refi) {
-			const int t = R_ANAL_REF_TYPE_MASK (refi->type);
-			if (t == R_ANAL_REF_TYPE_CALL) {
-				r_cons_printf (cons, "'axC 0x%"PFMT64x" 0x%"PFMT64x"\n", refi->addr, refi->at);
-			} else if (t == R_ANAL_REF_TYPE_DATA) {
-				r_cons_printf (cons, "'axd 0x%"PFMT64x" 0x%"PFMT64x"\n", refi->addr, refi->at);
-			} else if (t == R_ANAL_REF_TYPE_ICOD) {
-				r_cons_printf (cons, "'axi 0x%"PFMT64x" 0x%"PFMT64x"\n", refi->addr, refi->at);
-			} else if (t == R_ANAL_REF_TYPE_CODE) {
-				r_cons_printf (cons, "'axc 0x%"PFMT64x" 0x%"PFMT64x"\n", refi->addr, refi->at);
-			} else if (t == R_ANAL_REF_TYPE_STRN) {
-				r_cons_printf (cons, "'axs 0x%"PFMT64x" 0x%"PFMT64x"\n", refi->addr, refi->at);
-			} else {
-				r_cons_printf (cons, "'ax 0x%"PFMT64x" 0x%"PFMT64x"\n", refi->addr, refi->at);
+			const char *ty;
+			switch (R_ANAL_REF_TYPE_MASK (refi->type)) {
+			case R_ANAL_REF_TYPE_CALL: ty = "C"; break;
+			case R_ANAL_REF_TYPE_DATA: ty = "d"; break;
+			case R_ANAL_REF_TYPE_ICOD: ty = "i"; break;
+			case R_ANAL_REF_TYPE_CODE: ty = "c"; break;
+			case R_ANAL_REF_TYPE_STRN: ty = "s"; break;
+			default: ty = ""; break;
 			}
+			// the perm goes when the type does not imply it, like the write of a data ref
+			const char *perm = r_anal_ref_perm_tocmd (refi);
+			r_cons_printf (cons, "'ax%s 0x%"PFMT64x" 0x%"PFMT64x"%s%s\n", ty, refi->addr, refi->at,
+				perm? " ": "", r_str_get (perm));
 		}
 	}
 	RVecAnalRef_free (refs);

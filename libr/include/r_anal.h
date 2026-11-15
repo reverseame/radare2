@@ -1299,6 +1299,7 @@ R_API int r_anal_ref_typemask(int x);
 R_DEPRECATE R_API RAnalRefType r_anal_xrefs_type(char ch);
 
 R_API const char *r_anal_ref_perm_tostring(RAnalRef *ref);
+R_API const char *r_anal_ref_perm_tocmd(RAnalRef *ref);
 R_API char r_anal_ref_perm_tochar(RAnalRef *ref);
 R_API char r_anal_ref_permchar_tostring(RAnalRef *ref);
 

@@ -1233,6 +1233,7 @@ static RCoreHelpMessage help_msg_av = {
 static RCoreHelpMessage help_msg_ax = {
 	"Usage:", "ax[?d-l*]", " # see also 'afx?'",
 	"ax", " addr [at]", "add code ref pointing to addr (from curseek)",
+	"ax", " addr at [perm]", "set the rwx perm of the ref too, as ax* and afl* save it (axd 0x40 0x9 rw-)",
 	"ax", "", "list refs",
 	"ax*", "", "output radare commands",
 	"ax-", " [at]", "clean all refs/refs from addr",
@@ -12262,8 +12263,9 @@ static bool cmd_anal_refs(RCore *core, const char *input) {
 						pj_end (pj);
 					} else {
 						if (r2mode) {
-							r_cons_printf (core->cons, "ax%c 0x%08"PFMT64x" 0x%08"PFMT64x"\n",
-								refi->type, refi->addr, refi->at);
+							const char *perm = r_anal_ref_perm_tocmd (refi);
+							r_cons_printf (core->cons, "ax%c 0x%08"PFMT64x" 0x%08"PFMT64x"%s%s\n",
+								R_ANAL_REF_TYPE_MASK (refi->type), refi->addr, refi->at, perm? " ": "", r_str_get (perm));
 						} else if (quiet) {
 							if (quieter) {
 								r_cons_printf (core->cons, "0x%08"PFMT64x"\n", refi->addr);
@@ -12429,7 +12431,23 @@ static bool cmd_anal_refs(RCore *core, const char *input) {
 			ut64 at = core->addr;
 			ut64 addr = UT64_MAX;
 			RAnalRefType reftype = r_anal_xrefs_type (input[0]);
+			if (input[0] == 'r' || input[0] == 'w') {
+				// data refs that read or write, as the analysis of a mov sets them
+				reftype = R_ANAL_REF_TYPE_DATA | (input[0] == 'r'? R_ANAL_REF_TYPE_READ: R_ANAL_REF_TYPE_WRITE);
+			}
 			switch (n) {
+			case 3: { // get perm, which ax* and afl* write when the type does not imply it
+				const char *permstr = r_str_word_get0 (ptr, 2);
+				const int perm = r_str_rwx (permstr);
+				if (perm < 0 || perm > R_PERM_RWX) {
+					R_LOG_ERROR ("Invalid ref perm '%s'", permstr);
+					free (ptr);
+					return false;
+				}
+				// R_ANAL_REF_TYPE_{READ,WRITE,EXEC} are the R_PERM bits shifted by 8
+				reftype = R_ANAL_REF_TYPE_MASK (reftype) | (perm << 8);
+			}
+			/* fall through */
 			case 2: // get at
 				at = r_num_math (core->num, r_str_word_get0 (ptr, 1));
 			/* fall through */

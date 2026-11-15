@@ -828,6 +828,7 @@ R_API RAnalRefType r_anal_xrefs_type(char ch) {
 	switch (ch) {
 	case R_ANAL_REF_TYPE_CODE:
 	case R_ANAL_REF_TYPE_CALL:
+	case R_ANAL_REF_TYPE_JUMP:
 	case R_ANAL_REF_TYPE_DATA:
 	case R_ANAL_REF_TYPE_STRN:
 	case R_ANAL_REF_TYPE_ICOD:

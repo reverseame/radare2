@@ -3323,6 +3323,7 @@ static int fcn_print_detail(RCore *core, RAnalFunction *fcn) {
 			const char *ty;
 			switch (R_ANAL_REF_TYPE_MASK (refi->type)) {
 			case R_ANAL_REF_TYPE_CALL: ty = "C"; break;
+			case R_ANAL_REF_TYPE_JUMP: ty = "j"; break;
 			case R_ANAL_REF_TYPE_DATA: ty = "d"; break;
 			case R_ANAL_REF_TYPE_ICOD: ty = "i"; break;
 			case R_ANAL_REF_TYPE_CODE: ty = "c"; break;

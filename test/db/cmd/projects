@@ -1140,3 +1140,33 @@ axd 0x48 0xa rw-
 0x0000000a -> 0x00000048  DATA:rw-
 EOF
 RUN
+
+NAME=ax* and afl* keep the jump type of the xrefs
+FILE=malloc://0x100
+ARGS=-a x86 -b 32
+CMDS=<<EOF
+mkdir .tmp
+wx 5589e55de917000000
+af
+axj 0x20 0x4
+ax*
+afl*~^'ax
+ax* > .tmp/ax-jump.r2
+ax-*
+. .tmp/ax-jump.r2
+rm .tmp/ax-jump.r2
+axq
+afl* > .tmp/afl-jump.r2
+af-*
+ax-*
+. .tmp/afl-jump.r2
+rm .tmp/afl-jump.r2
+axq
+EOF
+EXPECT=<<EOF
+axj 0x20 0x4
+'axj 0x20 0x4
+0x00000004 -> 0x00000020  JUMP:--x
+0x00000004 -> 0x00000020  JUMP:--x
+EOF
+RUN

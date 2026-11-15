@@ -294,6 +294,7 @@ rm .tmp/var
 EOF
 EXPECT=<<EOF
 'afvb 8 ImageHandle blah
+'@0x10002d8d'afvR 0x10002d9d ebp 8 ImageHandle
 'afvr edi blahblah typeR
 EOF
 RUN
@@ -1075,5 +1076,28 @@ EXPECT=<<EOF
 'fc pdb.Point::init_int__int_=red
 [{"name":"pdb.Point::init_int__int_","realname":"public: void __thiscall Point::init(int, int)"}]
 'fc pdb.Point::init_int__int_=red
+EOF
+RUN
+
+NAME=afl* restores the var accesses
+FILE=malloc://0x100
+ARGS=-a x86 -b 32
+CMDS=<<EOF
+mkdir .tmp
+wx 5589e583ec048b4508c745fc40000000a34000000089ec5dc3
+af
+e asm.bytes=false
+afl*~afvR,afvW
+afl* > .tmp/afl-var-accesses.r2
+af-*
+. .tmp/afl-var-accesses.r2
+rm .tmp/afl-var-accesses.r2
+pd 2 @ 6
+EOF
+EXPECT=<<EOF
+'@0x00000000'afvR 0x00000006 ebp 8 arg_8h
+'@0x00000000'afvW 0x00000009 ebp -4 var_4h
+|           0x00000006      mov eax, dword [arg_8h]
+|           0x00000009      mov dword [var_4h], 0x40                   ; '@'
 EOF
 RUN

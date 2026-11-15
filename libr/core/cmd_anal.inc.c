@@ -902,9 +902,11 @@ static RCoreHelpMessage help_msg_afv = {
 	"afvn", " [new_name] ([old_name])", "rename argument/local",
 	"afvr", "[?]", "manipulate register based arguments",
 	"afvR", " [varname]", "list addresses where vars are accessed (READ)",
+	"afvR", " [addr] [reg] [stackptr] [varname]", "add a READ access of the var at addr, through reg+stackptr",
 	"afvs", "[?]", "manipulate sp based arguments/locals",
 	"afvt", " [name] ([type])", "display or change type for given local variable/argument",
 	"afvW", " [varname]", "list addresses where vars are accessed (WRITE)",
+	"afvW", " [addr] [reg] [stackptr] [varname]", "add a WRITE access of the var at addr, through reg+stackptr",
 	"afvx", "", "show function variable xrefs (same as afvR+afvW)",
 	NULL
 };
@@ -1852,6 +1854,40 @@ static void list_vars(RCore *core, RAnalFunction *fcn, PJ *pj, int type, const c
 	RVecAnalVarPtr_free (vars);
 }
 
+// "addr reg stackptr name": the access the var analysis found, which afv[bsr] alone cannot
+// recreate, as the blocks of a project come with no stack depths to find it again.
+// The name goes last as it can have spaces, like the PDB ones of function pointers.
+static bool set_var_access(RCore *core, RAnalFunction *fcn, int type, const char *args) {
+	char *words[3] = {0};
+	char *dup = strdup (args);
+	char *p = dup;
+	bool ok = false;
+	int i;
+	for (i = 0; i < 3 && p; i++) {
+		words[i] = p;
+		p = strchr (p, ' ');
+		if (p) {
+			*p++ = 0;
+			p = (char *)r_str_trim_head_ro (p);
+		}
+	}
+	if (R_STR_ISEMPTY (p)) {
+		R_LOG_ERROR ("Usage: afv%c [addr] [reg] [stackptr] [name]", type == R_PERM_R? 'R': 'W');
+		goto beach;
+	}
+	RAnalVar *var = r_anal_function_get_var_byname (fcn, p);
+	if (!var) {
+		R_LOG_ERROR ("Cannot find variable %s", p);
+		goto beach;
+	}
+	const ut64 addr = r_num_math (core->num, words[0]);
+	const st64 stackptr = (st64)r_num_math (core->num, words[2]);
+	ok = r_anal_var_set_access (core->anal, var, words[1], addr, type, stackptr);
+beach:
+	free (dup);
+	return ok;
+}
+
 static void cmd_afvx(RCore *core, RAnalFunction *fcn, bool json) {
 	R_RETURN_IF_FAIL (core);
 	if (!fcn) {
@@ -2176,6 +2212,12 @@ static int cmd_afv(RCore *core, const char *str) {
 			const char *name = strchr (ostr, ' ');
 			if (name) {
 				name = r_str_trim_head_ro (name);
+			}
+			if ((str[0] == 'R' || str[0] == 'W') && name && isdigit ((ut8)*name) && strchr (name, ' ')) {
+				// "afvR addr reg stackptr name" restores an access, as projects save them
+				bool ok = set_var_access (core, fcn, str[0] == 'R'? R_PERM_R: R_PERM_W, name);
+				free (ostr);
+				return ok;
 			}
 			if (str[1] == 'j') {
 				pj = r_core_pj_new (core);

@@ -2558,6 +2558,29 @@ repeat:
 	}
 }
 
+// afv[bsr]* restores the vars but not where they are accessed, which pd needs to show their names
+static void fcn_list_var_accesses(RCore *core, RAnalFunction *fcn) {
+	RAnalVar **it;
+	R_VEC_FOREACH (&fcn->vars, it) {
+		RAnalVar *var = *it;
+		RAnalVarAccess *acc;
+		R_VEC_FOREACH (&var->accesses, acc) {
+			if (!acc->reg) {
+				continue;
+			}
+			const ut64 addr = fcn->addr + acc->offset;
+			int i;
+			for (i = 0; i < 2; i++) {
+				const int perm = i? R_PERM_W: R_PERM_R;
+				if (acc->type & perm) {
+					r_cons_printf (core->cons, "'@0x%08"PFMT64x"'afv%c 0x%08"PFMT64x" %s %"PFMT64d" %s\n",
+						fcn->addr, i? 'W': 'R', addr, acc->reg, acc->stackptr, var->name);
+				}
+			}
+		}
+	}
+}
+
 static void fcn_list_bbs(RCore *core, RAnalFunction *fcn) {
 	RAnalBlock *bbi;
 	RAnalBlock **iter;
@@ -3291,6 +3314,7 @@ static int fcn_print_detail(RCore *core, RAnalFunction *fcn) {
 	r_core_cmdf (core, "afvb* @ 0x%"PFMT64x, fcn->addr);
 	r_core_cmdf (core, "afvr* @ 0x%"PFMT64x, fcn->addr);
 	r_core_cmdf (core, "afvs* @ 0x%"PFMT64x, fcn->addr);
+	fcn_list_var_accesses (core, fcn);
 	/* Show references */
 	RVecAnalRef *refs = r_anal_function_get_refs (fcn);
 	if (refs) {
